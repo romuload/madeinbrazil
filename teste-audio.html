@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Teste de áudio</title>
+<style>
+  body { margin: 0; padding: 16px; font: 700 17px/1.4 system-ui, sans-serif; color: #3c3c3c; background: #fff; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  p { margin: 0 0 14px; font-weight: 500; }
+  button { display: block; width: 100%; margin: 0 0 12px; padding: 16px; font: inherit; color: #fff; background: #58cc02; border: 0; border-radius: 16px; box-shadow: 0 4px 0 #58a700; text-align: left; }
+  button:active { transform: translateY(4px); box-shadow: none; }
+  pre { margin: 16px 0 0; padding: 12px; background: #f7f7f7; border: 2px solid #e5e5e5; border-radius: 14px; font: 500 13px/1.45 ui-monospace, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<h1>Teste de áudio</h1>
+<p>Toque nos quatro botões, um de cada vez, esperando uns 3 segundos entre eles. Depois mande um print desta tela inteira, dizendo quais você ouviu.</p>
+<button id="b1">1. Voz simples</button>
+<button id="b2">2. Voz em inglês</button>
+<button id="b3">3. Bipe do caça-palavras</button>
+<button id="b4">4. Bipe como arquivo de áudio</button>
+<pre id="log"></pre>
+<script>
+const out = document.getElementById("log");
+const t0 = Date.now();
+const log = m => { out.textContent += ((Date.now() - t0) / 1000).toFixed(1) + "s  " + m + "\n"; };
+const synth = window.speechSynthesis;
+log(navigator.userAgent);
+log("fala disponível: " + ("speechSynthesis" in window && "SpeechSynthesisUtterance" in window));
+const voices = () => {
+  try {
+    const v = synth.getVoices();
+    log("vozes: " + v.length + " | inglês: " + v.filter(x => /^en/i.test(x.lang)).map(x => x.name + " (" + x.lang + (x.localService ? "" : ", rede") + (x.default ? ", padrão" : "") + ")").join(", "));
+  } catch (e) { log("erro ao listar vozes: " + e); }
+};
+if (synth) { voices(); try { synth.addEventListener("voiceschanged", voices); } catch (e) {} }
+
+let keep = [];
+function say(n, lang) {
+  try {
+    log(n + ": antes: falando=" + synth.speaking + " fila=" + synth.pending + " pausado=" + synth.paused);
+    const u = new SpeechSynthesisUtterance("I paid the duck.");
+    if (lang) u.lang = lang;
+    u.onstart = () => log(n + ": começou");
+    u.onend = e => log(n + ": terminou em " + (e.elapsedTime || 0).toFixed(0));
+    u.onerror = e => log(n + ": ERRO " + e.error);
+    keep.push(u);
+    synth.speak(u);
+    setTimeout(() => log(n + ": 1s depois: falando=" + synth.speaking + " fila=" + synth.pending + " pausado=" + synth.paused), 1000);
+  } catch (e) { log(n + ": exceção " + e); }
+}
+document.getElementById("b1").onclick = () => say(1, null);
+document.getElementById("b2").onclick = () => say(2, "en-US");
+
+let ctx = null;
+document.getElementById("b3").onclick = () => {
+  try {
+    ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+    log("3: estado do áudio: " + ctx.state);
+    if (ctx.state === "suspended") ctx.resume().then(() => log("3: reativado: " + ctx.state), e => log("3: não reativou: " + e));
+    [659, 880].forEach((f, n) => {
+      const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + n * .15;
+      o.type = "triangle"; o.frequency.value = f;
+      g.gain.setValueAtTime(.0001, t);
+      g.gain.exponentialRampToValueAtTime(.3, t + .02);
+      g.gain.exponentialRampToValueAtTime(.0001, t + .4);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t); o.stop(t + .45);
+    });
+    log("3: bipe enviado");
+  } catch (e) { log("3: exceção " + e); }
+};
+
+// Um bipe gravado como arquivo WAV, montado aqui mesmo: testa o caminho que áudio gravado usaria.
+function wav() {
+  const rate = 22050, n = rate * .6, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  const str = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  str(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); str(8, "WAVEfmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, "data"); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) {
+    const f = i < n / 2 ? 659 : 880, env = Math.min(1, i / 400, (n - i) / 2000);
+    v.setInt16(44 + i * 2, Math.sin(2 * Math.PI * f * i / rate) * 12000 * env, true);
+  }
+  return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+}
+document.getElementById("b4").onclick = () => {
+  try {
+    const a = new Audio(wav());
+    a.onplaying = () => log("4: tocando");
+    a.onended = () => log("4: terminou");
+    a.onerror = () => log("4: ERRO no arquivo");
+    const p = a.play();
+    if (p && p.then) p.then(() => log("4: play aceito"), e => log("4: play recusado: " + e));
+  } catch (e) { log("4: exceção " + e); }
+};
+</script>
+</body>
+</html>
