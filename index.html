@@ -680,6 +680,8 @@ if (canSpeak) {
   pickVoice();
   try { window.speechSynthesis.addEventListener("voiceschanged", pickVoice); } catch (e) {}
 }
+// No iPhone e no iPad, escolher a voz pela página faz a fala sair muda: lá vale só o idioma, e o aparelho usa a voz americana padrão.
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 let saying = null;   // guarda a fala em andamento: sem isso alguns celulares a descartam antes de tocar
 function speak(text) {
   if (!canSpeak) return;
@@ -689,14 +691,15 @@ function speak(text) {
     const say = withVoice => {
       const u = new SpeechSynthesisUtterance(text);
       u.lang = "en-US"; u.rate = 0.95;
-      if (withVoice && voice) { u.voice = voice; u.lang = String(voice.lang).replace("_", "-"); }
+      const pick = withVoice && voice && !isIOS;
+      if (pick) { u.voice = voice; u.lang = String(voice.lang).replace("_", "-"); }
       let started = false;
       u.onstart = () => { started = true; };
       saying = u;
-      synth.resume();   // no iPhone a fala às vezes fica presa em pausa
+      if (synth.paused) synth.resume();
       synth.speak(u);
       // Se a voz escolhida não tocar, tenta de novo com a voz padrão do aparelho.
-      if (withVoice && voice) setTimeout(() => { if (!started && saying === u) { synth.cancel(); say(false); } }, 1500);
+      if (pick) setTimeout(() => { if (!started && saying === u) { synth.cancel(); say(false); } }, 1500);
     };
     // Cancelar e falar no mesmo instante faz o Android engolir a fala: só cancela se houver algo tocando.
     if (synth.speaking || synth.pending) { synth.cancel(); setTimeout(() => say(true), 120); }
