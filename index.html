@@ -680,15 +680,27 @@ if (canSpeak) {
   pickVoice();
   try { window.speechSynthesis.addEventListener("voiceschanged", pickVoice); } catch (e) {}
 }
+let saying = null;   // guarda a fala em andamento: sem isso alguns celulares a descartam antes de tocar
 function speak(text) {
   if (!canSpeak) return;
   try {
+    const synth = window.speechSynthesis;
     if (!voice) pickVoice();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "en-US"; u.rate = 0.95;
-    if (voice) { u.voice = voice; u.lang = voice.lang; }
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
+    const say = withVoice => {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "en-US"; u.rate = 0.95;
+      if (withVoice && voice) { u.voice = voice; u.lang = String(voice.lang).replace("_", "-"); }
+      let started = false;
+      u.onstart = () => { started = true; };
+      saying = u;
+      synth.resume();   // no iPhone a fala às vezes fica presa em pausa
+      synth.speak(u);
+      // Se a voz escolhida não tocar, tenta de novo com a voz padrão do aparelho.
+      if (withVoice && voice) setTimeout(() => { if (!started && saying === u) { synth.cancel(); say(false); } }, 1500);
+    };
+    // Cancelar e falar no mesmo instante faz o Android engolir a fala: só cancela se houver algo tocando.
+    if (synth.speaking || synth.pending) { synth.cancel(); setTimeout(() => say(true), 120); }
+    else say(true);
   } catch (e) {}
 }
 const listen = (text, id) => canSpeak
@@ -1307,6 +1319,7 @@ function wsTone(kind) {
   if (!save.ws.sound) return;
   try {
     wsAudio = wsAudio || new (window.AudioContext || window.webkitAudioContext)();
+    if (wsAudio.state === "suspended") wsAudio.resume();   // o celular começa com o áudio suspenso
     const seq = kind === "win" ? [523, 659, 784, 1047] : kind === "hit" ? [659, 880] : [330, 220];
     seq.forEach((f, n) => {
       const o = wsAudio.createOscillator(), g = wsAudio.createGain(), t = wsAudio.currentTime + n * .09;
