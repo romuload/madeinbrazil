@@ -8,7 +8,7 @@ Protótipo de jogo para aprender expressões em inglês a partir das expressões
 
 - **Ao pé da letra.** A expressão brasileira aparece traduzida palavra por palavra ("I paid the duck") e a pessoa escolhe como um americano diz a mesma coisa. Cada acerto vira uma figurinha no álbum: 114 no total, entre comuns, raras e lendárias.
 - **Viagem.** A pessoa desembarca nos Estados Unidos e passa por seis paradas (aeroporto, rua, hotel, restaurante, compras e imprevistos), com seis situações em cada uma. Quatro acertos carimbam a parada no passaporte e liberam a seguinte.
-- **Treino.** As 2.849 frases da parte português-inglês do livro, em rodadas de 10, sorteadas do livro todo ou de uma letra. Aparece a frase em português e a pessoa escolhe a tradução.
+- **Treino.** 1.139 frases da parte português-inglês do livro (40% do total), em rodadas de 10, sorteadas entre todas ou de uma letra. Aparece a frase em português e a pessoa escolhe a tradução.
 - **Caça-palavras.** Doze expressões em inglês escondidas numa grade, em oito direções, com cinco minutos no relógio. A lista dá a dica em português e revela a tradução quando a pessoa acha a palavra.
 
 Também há expressão do dia, sequência de dias jogados, rodadas por tema e um resultado pronto para compartilhar.
